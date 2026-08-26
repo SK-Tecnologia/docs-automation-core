@@ -35,7 +35,7 @@ class ClaudeClient:
 class GeminiClient:
     name = "gemini"
 
-    def __init__(self, model: str = "gemini-2.5-flash"):
+    def __init__(self, model: str = "gemini-3.6-flash"):
         from google import genai
         self.client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         self.model = model

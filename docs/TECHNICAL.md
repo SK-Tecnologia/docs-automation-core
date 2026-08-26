@@ -101,7 +101,7 @@ Interface comum: `generate(prompt: str) -> str`.
 | Classe | SDK | Modelo padrão | Env |
 |--------|-----|---------------|-----|
 | `ClaudeClient` | `anthropic` | `claude-sonnet-5` | `ANTHROPIC_API_KEY` |
-| `GeminiClient` | `google.genai` | `gemini-2.5-flash` | `GEMINI_API_KEY` |
+| `GeminiClient` | `google.genai` | `gemini-3.6-flash` | `GEMINI_API_KEY` |
 
 `build_clients()` instancia só as IAs com key presente. Se nenhuma key existir, lança `RuntimeError`.
 

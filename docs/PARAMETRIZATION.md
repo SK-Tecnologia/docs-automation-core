@@ -17,7 +17,7 @@
 | Cliente | Parâmetro de construção | Valor padrão | Observação |
 |---------|-------------------------|--------------|------------|
 | Claude | `model` | `claude-sonnet-5` | Definido em `ClaudeClient.__init__` |
-| Gemini | `model` | `gemini-2.5-flash` | Definido em `GeminiClient.__init__` |
+| Gemini | `model` | `gemini-3.6-flash` | Definido em `GeminiClient.__init__` |
 | Ambos | `max_tokens` em `generate` | `8000` | Limite de saída por chamada |
 
 Para trocar o modelo, altere o default (ou passe o argumento) em `scripts/ai_clients.py`.
