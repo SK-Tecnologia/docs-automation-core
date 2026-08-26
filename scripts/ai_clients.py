@@ -41,10 +41,19 @@ class GeminiClient:
         self.model = model
 
     def generate(self, prompt: str, max_tokens: int = 8000) -> str:
-        response = self.client.models.generate_content(
+        from google.genai import types
+
+        # Chat.send_message evita o aviso de AFC em Models.generate_content.
+        chat = self.client.chats.create(
             model=self.model,
-            contents=prompt,
+            config=types.GenerateContentConfig(
+                max_output_tokens=max_tokens,
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+            ),
         )
+        response = chat.send_message(prompt)
         return response.text
 
 
