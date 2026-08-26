@@ -3,15 +3,18 @@ Orquestrador da documentação automática.
 
 Fluxo:
 1. Lê o diff do push atual (BASE_SHA -> HEAD_SHA).
-2. Monta 4 "tarefas" de documentação (changelog, técnico, parametrização, README).
+2. Monta 3 tarefas de documentação (changelog, técnico, parametrização).
 3. Estima o tamanho (tokens) de cada tarefa e distribui entre Claude e Gemini
-   usando um algoritmo guloso (LPT - Longest Processing Time first), que
-   equilibra a carga total entre as duas IAs, e não fixa "doc X = IA Y".
-4. Chama cada IA e grava o resultado no arquivo correspondente.
+   usando um algoritmo guloso (LPT - Longest Processing Time first).
+4. Chama cada IA e grava o resultado na estrutura:
+   docs/changelog/alteracao_<timestamp>.md
+   docs/configuration/parametrizacao.md
+   docs/technical/tecnica.md
 """
 
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from git_analyzer import get_push_context
@@ -27,13 +30,26 @@ import prompts
 REPO_ROOT = Path.cwd()
 DOCS_DIR = REPO_ROOT / "docs"
 
-# Cada tarefa: nome, caminho do arquivo final, template de prompt
-TASKS = [
-    {"key": "changelog", "path": DOCS_DIR / "CHANGELOG.md", "template": prompts.CHANGELOG_PROMPT},
-    {"key": "technical", "path": DOCS_DIR / "TECHNICAL.md", "template": prompts.TECHNICAL_PROMPT},
-    {"key": "parametrization", "path": DOCS_DIR / "PARAMETRIZATION.md", "template": prompts.PARAMETRIZATION_PROMPT},
-    {"key": "readme", "path": REPO_ROOT / "README.md", "template": prompts.README_PROMPT},
-]
+
+def build_tasks() -> list[dict]:
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    return [
+        {
+            "key": "changelog",
+            "path": DOCS_DIR / "changelog" / f"alteracao_{timestamp}.md",
+            "template": prompts.CHANGELOG_PROMPT,
+        },
+        {
+            "key": "technical",
+            "path": DOCS_DIR / "technical" / "tecnica.md",
+            "template": prompts.TECHNICAL_PROMPT,
+        },
+        {
+            "key": "parametrization",
+            "path": DOCS_DIR / "configuration" / "parametrizacao.md",
+            "template": prompts.PARAMETRIZATION_PROMPT,
+        },
+    ]
 
 
 def read_existing(path: Path) -> str:
@@ -90,15 +106,12 @@ def main():
     module_type, module_description = detect_module_type(ctx.repo_tree)
     print(f"Tipo de módulo detectado: {module_type} — {module_description}")
 
-    # Monta as tarefas com prompt já pronto + estimativa de tokens
     jobs = []
-    for task in TASKS:
+    for task in build_tasks():
         prompt = build_prompt(task, ctx, module_type, module_description)
         jobs.append({**task, "prompt": prompt, "tokens": estimate_tokens(prompt)})
 
     assignment = distribute_tasks(jobs, clients)
-
-    DOCS_DIR.mkdir(exist_ok=True)
 
     for job in jobs:
         provider = assignment[job["key"]]
@@ -109,6 +122,7 @@ def main():
         except Exception as e:
             print(f"  ERRO ao gerar '{job['key']}' com {provider}: {e}", file=sys.stderr)
             continue
+        job["path"].parent.mkdir(parents=True, exist_ok=True)
         job["path"].write_text(content.strip() + "\n", encoding="utf-8")
         print(f"  OK -> {job['path'].relative_to(REPO_ROOT)}")
 

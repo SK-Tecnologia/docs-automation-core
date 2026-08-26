@@ -1,5 +1,5 @@
 """
-Templates de prompt para cada um dos 4 documentos.
+Templates de prompt para cada documento gerado.
 Ajuste o tom/idioma/seções conforme o padrão real do seu projeto.
 """
 
@@ -24,24 +24,24 @@ Arquivos alterados neste push e seus diffs:
 
 
 CHANGELOG_PROMPT = BASE_CONTEXT + """
-Tarefa: gerar/atualizar o CHANGELOG.md do projeto.
+Tarefa: gerar um arquivo de alteração (changelog) apenas para ESTE push.
 
-Conteúdo atual do CHANGELOG.md (pode estar vazio se for a primeira geração):
+Contexto (o arquivo de destino ainda não existe; ignore histórico antigo):
 {existing_content}
 
 Instruções:
-- Siga o padrão "Keep a Changelog" (Added / Changed / Fixed / Removed).
-- Adicione uma NOVA entrada no topo, com a data de hoje, resumindo o que mudou neste push
-  com base nos commits e diffs acima (não invente funcionalidades que não estão no diff).
-- Mantenha todo o histórico anterior abaixo, sem reescrevê-lo.
-- Responda APENAS com o conteúdo final completo do arquivo CHANGELOG.md, em Markdown, sem comentários extras.
+- Gere somente o conteúdo desta alteração (não mescle histórico de outros arquivos).
+- Siga o padrão "Keep a Changelog" (Added / Changed / Fixed / Removed) quando aplicável.
+- Use a data/hora de hoje no título da entrada.
+- Resuma o que mudou neste push com base nos commits e diffs acima (não invente funcionalidades).
+- Responda APENAS com o Markdown final do arquivo, sem comentários extras.
 """
 
 
 TECHNICAL_PROMPT = BASE_CONTEXT + """
-Tarefa: gerar/atualizar a documentação técnica do projeto (docs/TECHNICAL.md).
+Tarefa: gerar/atualizar a documentação técnica do projeto (docs/technical/tecnica.md).
 
-Conteúdo atual de docs/TECHNICAL.md (pode estar vazio):
+Conteúdo atual de docs/technical/tecnica.md (pode estar vazio):
 {existing_content}
 
 Instruções:
@@ -54,9 +54,9 @@ Instruções:
 
 
 PARAMETRIZATION_PROMPT = BASE_CONTEXT + """
-Tarefa: gerar/atualizar a documentação de parametrização (docs/PARAMETRIZATION.md).
+Tarefa: gerar/atualizar a documentação de parametrização (docs/configuration/parametrizacao.md).
 
-Conteúdo atual de docs/PARAMETRIZATION.md (pode estar vazio):
+Conteúdo atual de docs/configuration/parametrizacao.md (pode estar vazio):
 {existing_content}
 
 Instruções:
@@ -65,20 +65,5 @@ Instruções:
   alterados ou removidos neste push.
 - Formate como tabela Markdown quando possível (Parâmetro | Tipo | Padrão | Descrição).
 - Preserve parametrizações antigas não afetadas por este push.
-- Responda APENAS com o conteúdo final completo do arquivo em Markdown.
-"""
-
-
-README_PROMPT = BASE_CONTEXT + """
-Tarefa: gerar/atualizar o README.md principal do projeto (raiz do repositório).
-
-Conteúdo atual do README.md (pode estar vazio):
-{existing_content}
-
-Instruções:
-- Atualize descrição do projeto, instalação, uso e exemplos se as mudanças deste push impactarem
-  essas seções (ex.: nova dependência, novo comando, nova pasta relevante).
-- Não remova seções existentes que não foram impactadas.
-- Se nada relevante para o README mudou, apenas devolva o conteúdo atual sem alterações.
 - Responda APENAS com o conteúdo final completo do arquivo em Markdown.
 """

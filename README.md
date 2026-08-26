@@ -4,10 +4,9 @@ Núcleo reutilizável de **documentação automática por IA** para repositório
 
 | Artefato | Caminho |
 |----------|---------|
-| Changelog | `docs/CHANGELOG.md` |
-| Documentação técnica | `docs/TECHNICAL.md` |
-| Parametrização | `docs/PARAMETRIZATION.md` |
-| README do repo alvo | `README.md` |
+| Changelog (por alteração) | `docs/changelog/alteracao_<timestamp>.md` |
+| Documentação técnica | `docs/technical/tecnica.md` |
+| Parametrização | `docs/configuration/parametrizacao.md` |
 
 As tarefas são distribuídas entre **Claude** (Anthropic) e **Gemini** (Google) com balanceamento guloso por tokens estimados (LPT — *Longest Processing Time first*).
 
