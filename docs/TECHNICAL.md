@@ -45,7 +45,8 @@ Os scripts vivem neste repositório central, mas **escrevem no working directory
 2. Disponibilize `scripts/` deste core
 3. Execute `generate_docs.py` com CWD = raiz do alvo
 
-Assim, `docs/CHANGELOG.md`, `docs/TECHNICAL.md`, `docs/PARAMETRIZATION.md` e `README.md` são atualizados no projeto que disparou o push.
+Assim, no projeto que disparou o push são atualizados apenas:
+`docs/changelog/alteracao_<timestamp>.md`, `docs/technical/tecnica.md` e `docs/configuration/parametrizacao.md`.
 
 ## Componentes
 
@@ -64,10 +65,9 @@ Orquestrador. Responsabilidades:
 
 | key | destino no repo alvo | template |
 |-----|----------------------|----------|
-| `changelog` | `docs/CHANGELOG.md` | `CHANGELOG_PROMPT` |
-| `technical` | `docs/TECHNICAL.md` | `TECHNICAL_PROMPT` |
-| `parametrization` | `docs/PARAMETRIZATION.md` | `PARAMETRIZATION_PROMPT` |
-| `readme` | `README.md` | `README_PROMPT` |
+| `changelog` | `docs/changelog/alteracao_<timestamp>.md` | `CHANGELOG_PROMPT` |
+| `technical` | `docs/technical/tecnica.md` | `TECHNICAL_PROMPT` |
+| `parametrization` | `docs/configuration/parametrizacao.md` | `PARAMETRIZATION_PROMPT` |
 
 Truncamentos aplicados ao montar o prompt:
 

@@ -45,10 +45,9 @@ Arquivos sob essas pastas não entram em `changed_files` nem em `repo_tree`.
 | Arquivo | Criado se não existir |
 |---------|------------------------|
 | `docs/` | sim (`mkdir`) |
-| `docs/CHANGELOG.md` | sobrescrito após geração |
-| `docs/TECHNICAL.md` | sobrescrito após geração |
-| `docs/PARAMETRIZATION.md` | sobrescrito após geração |
-| `README.md` | sobrescrito após geração |
+| `docs/changelog/alteracao_<timestamp>.md` | criado a cada push |
+| `docs/technical/tecnica.md` | sobrescrito após geração |
+| `docs/configuration/parametrizacao.md` | sobrescrito após geração |
 
 ## Dependências Python
 
