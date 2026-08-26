@@ -1,0 +1,64 @@
+name: Reusable Auto Docs
+
+on:
+  workflow_call:
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: false
+      GEMINI_API_KEY:
+        required: false
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout do repositório alvo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout do núcleo de documentação
+        uses: actions/checkout@v4
+        with:
+          repository: SK-Tecnologia/docs-automation-core
+          path: .docs-automation-core
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Instalar dependências
+        run: pip install -r .docs-automation-core/requirements.txt
+
+      - name: Gerar documentação
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/.docs-automation-core/scripts
+        run: python .docs-automation-core/scripts/generate_docs.py
+
+      - name: Remover checkout do núcleo
+        run: rm -rf .docs-automation-core
+
+      - name: Commit e push da documentação
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add docs/ README.md || true
+
+          if git diff --staged --quiet; then
+            echo "Nenhuma alteração de documentação para commitar."
+          else
+            git commit -m "docs: atualização automática via docs-automation-core"
+            git push
+          fi
