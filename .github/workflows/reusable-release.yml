@@ -1,0 +1,137 @@
+name: Reusable Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Versão semver sem prefixo (ex 1.2.3)
+        required: true
+        type: string
+      tag_prefix:
+        description: Prefixo da tag Git
+        required: false
+        type: string
+        default: v
+      create_tag:
+        description: Cria e envia a tag Git (false se a tag já existir no push)
+        required: false
+        type: boolean
+        default: true
+      prerelease:
+        description: Marca o GitHub Release como prerelease
+        required: false
+        type: boolean
+        default: false
+      ref:
+        description: Ref explícita para checkout (commit/branch/tag)
+        required: false
+        type: string
+        default: ""
+    outputs:
+      tag:
+        description: Tag completa criada ou reutilizada
+        value: ${{ jobs.release.outputs.tag }}
+      version:
+        description: Versão semver normalizada
+        value: ${{ jobs.release.outputs.version }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      version: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolver versão e tag
+        id: meta
+        run: |
+          RAW="${{ inputs.version }}"
+          VERSION="${RAW#${{ inputs.tag_prefix }}}"
+          VERSION="${VERSION#v}"
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?(\+[A-Za-z0-9.-]+)?$ ]]; then
+            echo "Versão inválida: $VERSION"
+            exit 1
+          fi
+
+          TAG="${{ inputs.tag_prefix }}${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Versão: $VERSION | Tag: $TAG"
+
+      - name: Montar notas do release
+        id: notes
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          PREVIOUS_TAG=$(git tag -l "${{ inputs.tag_prefix }}*" --sort=-v:refname | grep -v "^${TAG}$" | head -n 1 || true)
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+
+          {
+            echo "## Release ${TAG}"
+            echo
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "### Commits desde \`${PREVIOUS_TAG}\`"
+              echo
+              git log "${PREVIOUS_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges || true
+              echo
+              echo
+            else
+              echo "_Primeiro release versionado._"
+              echo
+            fi
+
+            LATEST_CHANGELOG=$(find docs/changelog -maxdepth 1 -name 'alteracao_*.md' -type f 2>/dev/null | sort | tail -n 1 || true)
+            if [ -n "$LATEST_CHANGELOG" ] && [ -f "$LATEST_CHANGELOG" ]; then
+              echo "### Último changelog gerado"
+              echo
+              head -n 40 "$LATEST_CHANGELOG"
+            fi
+          } > "$NOTES_FILE"
+
+          echo "file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Criar tag Git
+        if: inputs.create_tag
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG já existe localmente."
+          else
+            git tag -a "$TAG" -m "Release $TAG"
+          fi
+
+          git push origin "$TAG"
+
+      - name: Criar GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          PRERELEASE="${{ inputs.prerelease }}"
+          NOTES_FILE="${{ steps.notes.outputs.file }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG já existe."
+            exit 0
+          fi
+
+          if [ "$PRERELEASE" = "true" ]; then
+            gh release create "$TAG" --title "Release $TAG" --notes-file "$NOTES_FILE" --prerelease
+          else
+            gh release create "$TAG" --title "Release $TAG" --notes-file "$NOTES_FILE"
+          fi
