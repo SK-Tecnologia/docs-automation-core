@@ -23,8 +23,6 @@ on:
         required: false
         type: boolean
         default: false
-    secrets:
-      inherit
     outputs:
       current:
         description: Versão antes do bump
