@@ -174,7 +174,7 @@ jobs:
 
       - name: Instalar dependências e build
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run build
 
       - name: Publicar no GitHub Packages
