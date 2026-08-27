@@ -46,6 +46,7 @@ Workflows reutilizáveis disponíveis:
 |----------|-----|
 | `reusable-auto-docs.yml` | Gera documentação em push |
 | `reusable-release.yml` | Cria tag `v*` e GitHub Release |
+| `reusable-auto-release.yml` | Bump automático + tag + release (+ npm opcional) |
 
 ## Estrutura
 

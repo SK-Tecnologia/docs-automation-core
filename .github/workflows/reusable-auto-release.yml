@@ -1,0 +1,185 @@
+name: Reusable Auto Release
+
+on:
+  workflow_call:
+    inputs:
+      bump:
+        description: Incremento semver a partir da versão atual
+        required: false
+        type: string
+        default: patch
+      publish_npm:
+        description: Publicar pacote npm no GitHub Packages (requer package.json)
+        required: false
+        type: boolean
+        default: false
+      npm_scope:
+        description: Scope npm para publish (ex @SK-Tecnologia)
+        required: false
+        type: string
+        default: ""
+      prerelease:
+        description: Marcar GitHub Release como prerelease
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      inherit
+    outputs:
+      current:
+        description: Versão antes do bump
+        value: ${{ jobs.bump.outputs.current }}
+      version:
+        description: Nova versão publicada
+        value: ${{ jobs.bump.outputs.version }}
+      tag:
+        description: Tag Git criada
+        value: ${{ jobs.tag-release.outputs.tag }}
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    outputs:
+      current: ${{ steps.version.outputs.current }}
+      version: ${{ steps.version.outputs.version }}
+      sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - name: Checkout do repositório alvo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout scripts centrais
+        uses: actions/checkout@v4
+        with:
+          repository: SK-Tecnologia/docs-automation-core
+          path: .docs-automation-core
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sincronizar branch principal
+        run: git pull --rebase origin "${GITHUB_REF_NAME}"
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Calcular próxima versão
+        id: version
+        run: |
+          if [ -f scripts/next-version.js ]; then
+            node scripts/next-version.js "${{ inputs.bump }}" --github-output
+          else
+            node .docs-automation-core/scripts/next-version.js "${{ inputs.bump }}" --github-output
+          fi
+
+          CURRENT=$(grep '^current=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)
+          NEXT=$(grep '^version=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)
+
+          {
+            echo "## Release automático"
+            echo "- Versão atual: \`$CURRENT\`"
+            echo "- Nova versão: \`$NEXT\`"
+            echo "- Incremento: \`${{ inputs.bump }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Atualizar arquivos de versão
+        run: |
+          NEXT="${{ steps.version.outputs.version }}"
+
+          if [ -f scripts/bump-version.js ]; then
+            node scripts/bump-version.js "$NEXT"
+          elif [ -f package.json ]; then
+            npm version "$NEXT" --no-git-tag-version --allow-same-version
+          else
+            echo "$NEXT" > VERSION
+          fi
+
+      - name: Commit e push da nova versão
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Nenhuma alteração de versão para commitar."
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.version }} [skip ci]"
+
+          BRANCH="${GITHUB_REF_NAME}"
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin "$BRANCH"
+            if git push origin "HEAD:${BRANCH}"; then
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Push rejeitado (tentativa ${attempt}/5)..."
+            sleep $((attempt * 3))
+          done
+
+          echo "Falha ao enviar bump de versão."
+          exit 1
+
+      - name: Remover scripts centrais
+        run: rm -rf .docs-automation-core
+
+  tag-release:
+    needs: bump
+    uses: SK-Tecnologia/docs-automation-core/.github/workflows/reusable-release.yml@main
+    with:
+      version: ${{ needs.bump.outputs.version }}
+      create_tag: true
+      prerelease: ${{ inputs.prerelease }}
+      ref: ${{ needs.bump.outputs.sha }}
+    secrets: inherit
+
+  publish-npm:
+    needs: [bump, tag-release]
+    if: inputs.publish_npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout na tag do release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag-release.outputs.tag }}
+
+      - name: Validar versão do package.json
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$PKG_VERSION" != "${{ needs.bump.outputs.version }}" ]; then
+            echo "package.json ($PKG_VERSION) difere da versão do release (${{ needs.bump.outputs.version }})."
+            exit 1
+          fi
+
+      - name: Configurar Node.js (GitHub Packages)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://npm.pkg.github.com
+          scope: ${{ inputs.npm_scope }}
+          cache: npm
+
+      - name: Instalar dependências e build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publicar no GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish
