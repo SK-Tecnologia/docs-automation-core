@@ -40,6 +40,13 @@ python /caminho/docs-automation-core/scripts/generate_docs.py
 
 Em GitHub Actions, este repositório costuma ser consumido como **reusable workflow**: o job faz checkout do repo alvo, clona/copia estes scripts e os executa no working directory do alvo.
 
+Workflows reutilizáveis disponíveis:
+
+| Workflow | Uso |
+|----------|-----|
+| `reusable-auto-docs.yml` | Gera documentação em push |
+| `reusable-release.yml` | Cria tag `v*` e GitHub Release |
+
 ## Estrutura
 
 ```
